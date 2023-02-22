@@ -19,7 +19,15 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QListWidgetItem>
+#include <QFileDialog>
+#include <QDir>
+#include <QDebug>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QDateTime>
 
+int counter = 0;
 //! [0]
 Window::Window()
 {
@@ -31,7 +39,11 @@ Window::Window()
     createActions();
     createTrayIcon();
 
-    connect(showMessageButton, &QAbstractButton::clicked, this, &Window::showMessage);
+    // connect(showMessageButton, &QAbstractButton::clicked, this, &Window::showMessage);
+    connect(addToListButton, &QAbstractButton::clicked, this, &Window::addItemToListClicked);
+    connect(deleteFromListButton, &QAbstractButton::clicked, this, &Window::deleteItemFromListClicked);
+
+
     connect(showIconCheckBox, &QAbstractButton::toggled, trayIcon, &QSystemTrayIcon::setVisible);
     connect(iconComboBox, &QComboBox::currentIndexChanged,
             this, &Window::setIcon);
@@ -48,6 +60,11 @@ Window::Window()
 
     setWindowTitle(tr("Systray"));
     resize(400, 300);
+
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(timerTick()));
+    int minutes = 10;
+    timer->start(10000);
 }
 //! [0]
 
@@ -155,12 +172,65 @@ void Window::createIconGroupBox()
     iconGroupBox->setLayout(iconLayout);
 }
 
+void Window::addItemToListClicked() {
+    QString folderPath = QFileDialog::getExistingDirectory(this, "Select Folder", QDir::homePath());
+
+    QListWidgetItem *item = new QListWidgetItem;
+    item->setText(folderPath);
+    item->setCheckState(Qt::Unchecked);
+    listItemsToWatch->addItem(item);
+}
+
+void Window::deleteItemFromListClicked() {
+
+}
+
+void Window::timerTick() {
+    counter++;
+    qDebug() << "timer ticker" << counter;
+
+    bool needsToNotify = true;
+    for (int i = 0; i < listItemsToWatch->count(); ++i) {
+        QListWidgetItem *item = listItemsToWatch->item(i);
+        QString checkThisPath = item->text();
+        bool foundRecentChange = checkFolderForChange(checkThisPath);
+        if (foundRecentChange) {
+            needsToNotify = false;
+            break;
+        }
+    }
+
+    if (needsToNotify) {
+
+    }
+}
+
+bool Window::checkFolderForChange(QString path) {
+    qint64 mustBeAfter = QDateTime::currentMSecsSinceEpoch() - (10 * 60 * 1000);
+
+    QDirIterator it(QDir(path), QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        QFile file(it.next());
+        QFileInfo fileInfo(it.fileInfo());
+        QDateTime lastModified = fileInfo.lastModified();
+
+        // qDebug() << file.fileName() << "last modified " << lastModified;
+        if (lastModified.toMSecsSinceEpoch() > mustBeAfter) {
+            qDebug() << file.fileName() << " last modified time GREATER!!!! than target. good means recent change here ";
+            return true;
+        }
+    }
+    return false;
+}
+
 void Window::createMessageGroupBox()
 {
     messageGroupBox = new QGroupBox(tr("Balloon Message"));
 
-    typeLabel = new QLabel(tr("Type:"));
 
+    //typeLabel = new QLabel(tr("Type:"));
+
+    /*
     typeComboBox = new QComboBox;
     typeComboBox->addItem(tr("None"), QSystemTrayIcon::NoIcon);
     typeComboBox->addItem(style()->standardIcon(
@@ -175,6 +245,13 @@ void Window::createMessageGroupBox()
     typeComboBox->addItem(QIcon(), tr("Custom icon"),
             -1);
     typeComboBox->setCurrentIndex(1);
+    */
+
+
+    listItemsToWatch = new QListWidget;
+
+    addToListButton = new QPushButton(tr("Add"));
+    deleteFromListButton = new QPushButton(tr("Delete"));
 
     durationLabel = new QLabel(tr("Duration:"));
 
@@ -201,18 +278,25 @@ void Window::createMessageGroupBox()
     showMessageButton->setDefault(true);
 
     QGridLayout *messageLayout = new QGridLayout;
-    messageLayout->addWidget(typeLabel, 0, 0);
-    messageLayout->addWidget(typeComboBox, 0, 1, 1, 2);
-    messageLayout->addWidget(durationLabel, 1, 0);
-    messageLayout->addWidget(durationSpinBox, 1, 1);
+    //messageLayout->addWidget(typeLabel, 0, 0);
+    //messageLayout->addWidget(typeComboBox, 0, 1, 1, 2);
+    messageLayout->addWidget(listItemsToWatch, 0, 0, 1, 5);
+    messageLayout->addWidget(addToListButton, 1, 0);
+    messageLayout->addWidget(deleteFromListButton, 1, 1);
+    messageLayout->addWidget(durationLabel, 2, 0);
+    messageLayout->addWidget(durationSpinBox, 2, 1);
+
+    /*
     messageLayout->addWidget(durationWarningLabel, 1, 2, 1, 3);
     messageLayout->addWidget(titleLabel, 2, 0);
     messageLayout->addWidget(titleEdit, 2, 1, 1, 4);
     messageLayout->addWidget(bodyLabel, 3, 0);
     messageLayout->addWidget(bodyEdit, 3, 1, 2, 4);
     messageLayout->addWidget(showMessageButton, 5, 4);
-    messageLayout->setColumnStretch(3, 1);
-    messageLayout->setRowStretch(4, 1);
+    */
+
+    //messageLayout->setColumnStretch(3, 1);
+    //messageLayout->setRowStretch(4, 1);
     messageGroupBox->setLayout(messageLayout);
 }
 
@@ -229,9 +313,6 @@ void Window::createActions()
 
     quitAction = new QAction(tr("&Quit"), this);
     connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
-}
-
-void someFunction() {
 }
 
 void Window::createTrayIcon()

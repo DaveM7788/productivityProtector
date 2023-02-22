@@ -9,6 +9,8 @@
 #ifndef QT_NO_SYSTEMTRAYICON
 
 #include <QDialog>
+#include <QListWidget>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -21,6 +23,8 @@ class QMenu;
 class QPushButton;
 class QSpinBox;
 class QTextEdit;
+class QListWidget;
+class QTimer;
 QT_END_NAMESPACE
 
 //! [0]
@@ -41,12 +45,16 @@ private slots:
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
     void showMessage();
     void messageClicked();
+    void addItemToListClicked();
+    void deleteItemFromListClicked();
+    void timerTick();
 
 private:
     void createIconGroupBox();
     void createMessageGroupBox();
     void createActions();
     void createTrayIcon();
+    bool checkFolderForChange(QString path);
 
     QGroupBox *iconGroupBox;
     QLabel *iconLabel;
@@ -72,6 +80,12 @@ private:
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
+
+    QListWidget *listItemsToWatch;
+    QPushButton *addToListButton;
+    QPushButton *deleteFromListButton;
+
+    QTimer *timer;
 };
 //! [0]
 
