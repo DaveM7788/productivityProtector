@@ -47,13 +47,16 @@ private slots:
     void messageClicked();
     void addItemToListClicked();
     void deleteItemFromListClicked();
+    void saveListClicked();
     void timerTick();
+    void onListItemClicked(QListWidgetItem *item);
 
 private:
     void createIconGroupBox();
     void createMessageGroupBox();
     void createActions();
     void createTrayIcon();
+    void initListFromStorage();
     bool checkFolderForChange(QString path);
 
     QGroupBox *iconGroupBox;
@@ -65,13 +68,8 @@ private:
     QLabel *typeLabel;
     QLabel *durationLabel;
     QLabel *durationWarningLabel;
-    QLabel *titleLabel;
-    QLabel *bodyLabel;
     QComboBox *typeComboBox;
     QSpinBox *durationSpinBox;
-    QLineEdit *titleEdit;
-    QTextEdit *bodyEdit;
-    QPushButton *showMessageButton;
 
     QAction *minimizeAction;
     QAction *maximizeAction;
@@ -84,6 +82,7 @@ private:
     QListWidget *listItemsToWatch;
     QPushButton *addToListButton;
     QPushButton *deleteFromListButton;
+    QPushButton *saveListDataButton;
 
     QTimer *timer;
 };
