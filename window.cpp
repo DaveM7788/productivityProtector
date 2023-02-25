@@ -56,11 +56,11 @@ Window::Window() {
     trayIcon->show();
 
     setWindowTitle(tr("Productivity Protector"));
-    resize(400, 300);
+    resize(400, 500);
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(timerTick()));
-    timer->start(.1 * 60 * 1000);
+    timer->start(1 * 60 * 1000);
 
     initListFromStorage();
 }
@@ -135,11 +135,12 @@ void Window::createStatusGroupBox() {
 
 void Window::addItemToListClicked() {
     QString folderPath = QFileDialog::getExistingDirectory(this, "Select Folder", QDir::homePath());
-
-    QListWidgetItem *item = new QListWidgetItem;
-    item->setText(folderPath);
-    item->setCheckState(Qt::Unchecked);
-    listItemsToWatch->addItem(item);
+    if (folderPath != "") {
+        QListWidgetItem *item = new QListWidgetItem;
+        item->setText(folderPath);
+        item->setCheckState(Qt::Unchecked);
+        listItemsToWatch->addItem(item);
+    }
 }
 
 void Window::deleteItemFromListClicked() {
@@ -193,7 +194,6 @@ void Window::updateCheckNumbers() {
 
 void Window::timerTick() {
     if (enableChecks->checkState() == Qt::Unchecked) {
-        qDebug() << "is unchecked return early";
         return;
     }
 
@@ -251,8 +251,11 @@ void Window::createFoldersGroupBox() {
     listItemsToWatch = new QListWidget;
 
     addToListButton = new QPushButton(tr("Add"));
+    addToListButton->setAutoDefault(false);
     deleteFromListButton = new QPushButton(tr("Delete"));
+    deleteFromListButton->setAutoDefault(false);
     saveListDataButton = new QPushButton(tr("Save"));
+    saveListDataButton->setAutoDefault(false);
 
     durationLabel = new QLabel(tr("Changes must occur within previous"));
     durationSpinBox = new QSpinBox;

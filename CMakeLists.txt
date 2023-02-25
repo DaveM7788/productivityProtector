@@ -29,9 +29,6 @@ target_link_libraries(productivity_protector PUBLIC
 
 # Resources:
 set(productivity_protector_resource_files
-    "images/bad.png"
-    "images/heart.png"
-    "images/trash.png"
     "images/productivity_protector.png"
     "images/productivity_protector_bigger.png"
 )
