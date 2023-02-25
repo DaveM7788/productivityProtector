@@ -27,38 +27,32 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QTextStream>
+#include <QStringLiteral>
 
 int listSelectIdx = -1;
-//! [0]
-Window::Window()
-{
-    createIconGroupBox();
-    createMessageGroupBox();
+int numSuccess = 0;
+int numFailed = 0;
 
-    iconLabel->setMinimumWidth(durationLabel->sizeHint().width());
-
+Window::Window() {
+    createStatusGroupBox();
+    createFoldersGroupBox();
     createActions();
     createTrayIcon();
 
-    // connect(showMessageButton, &QAbstractButton::clicked, this, &Window::showMessage);
     connect(addToListButton, &QAbstractButton::clicked, this, &Window::addItemToListClicked);
     connect(deleteFromListButton, &QAbstractButton::clicked, this, &Window::deleteItemFromListClicked);
     connect(saveListDataButton, &QAbstractButton::clicked, this, &Window::saveListClicked);
     connect(listItemsToWatch, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(onListItemClicked(QListWidgetItem*)));
 
-
-    connect(showIconCheckBox, &QAbstractButton::toggled, trayIcon, &QSystemTrayIcon::setVisible);
-    connect(iconComboBox, &QComboBox::currentIndexChanged,
-            this, &Window::setIcon);
+    setIcon();
     connect(trayIcon, &QSystemTrayIcon::messageClicked, this, &Window::messageClicked);
     connect(trayIcon, &QSystemTrayIcon::activated, this, &Window::iconActivated);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(iconGroupBox);
+    mainLayout->addWidget(statusGroupBox);
     mainLayout->addWidget(messageGroupBox);
     setLayout(mainLayout);
 
-    iconComboBox->setCurrentIndex(1);
     trayIcon->show();
 
     setWindowTitle(tr("Productivity Protector"));
@@ -66,25 +60,19 @@ Window::Window()
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(timerTick()));
-    timer->start(1 * 60 * 1000);
+    timer->start(.1 * 60 * 1000);
 
     initListFromStorage();
 }
-//! [0]
 
-//! [1]
-void Window::setVisible(bool visible)
-{
+void Window::setVisible(bool visible) {
     minimizeAction->setEnabled(visible);
     maximizeAction->setEnabled(!isMaximized());
     restoreAction->setEnabled(isMaximized() || !visible);
     QDialog::setVisible(visible);
 }
-//! [1]
 
-//! [2]
-void Window::closeEvent(QCloseEvent *event)
-{
+void Window::closeEvent(QCloseEvent *event) {
     if (!event->spontaneous() || !isVisible())
         return;
     if (trayIcon->isVisible()) {
@@ -97,26 +85,18 @@ void Window::closeEvent(QCloseEvent *event)
         event->ignore();
     }
 }
-//! [2]
 
-//! [3]
-void Window::setIcon(int index)
-{
-    QIcon icon = iconComboBox->itemIcon(index);
+void Window::setIcon() {
+    QIcon icon = QIcon(":/images/productivity_protector.png");
     trayIcon->setIcon(icon);
     setWindowIcon(icon);
-
-    trayIcon->setToolTip(iconComboBox->itemText(index));
+    trayIcon->setToolTip("Productivity Protector");
 }
-//! [3]
 
-//! [4]
-void Window::iconActivated(QSystemTrayIcon::ActivationReason reason)
-{
+void Window::iconActivated(QSystemTrayIcon::ActivationReason reason) {
     switch (reason) {
     case QSystemTrayIcon::Trigger:
     case QSystemTrayIcon::DoubleClick:
-        iconComboBox->setCurrentIndex((iconComboBox->currentIndex() + 1) % iconComboBox->count());
         break;
     case QSystemTrayIcon::MiddleClick:
         showMessage();
@@ -125,44 +105,32 @@ void Window::iconActivated(QSystemTrayIcon::ActivationReason reason)
         ;
     }
 }
-//! [4]
 
-//! [5]
 void Window::showMessage() {
     QString minutes = QString::number(durationSpinBox->value());
     QString message = "No changes detected within last " + minutes + " minutes";
     QIcon msgIcon = trayIcon->icon();
     trayIcon->showMessage("Productivity Protector", message, msgIcon, 15 * 1000);
 }
-//! [5]
 
-//! [6]
 void Window::messageClicked() {
     QMessageBox::information(nullptr, tr("Productivity Protector"),
                              tr("Sorry, I already gave what help I could.\n"
                                 "Maybe you should try asking a human?"));
 }
-//! [6]
 
-void Window::createIconGroupBox() {
-    iconGroupBox = new QGroupBox(tr("Tray Icon"));
+void Window::createStatusGroupBox() {
+    statusGroupBox = new QGroupBox(tr("Status"));
+    enableChecks = new QCheckBox(tr("Checks On"));
+    enableChecks->setChecked(true);
+    failedChecks = new QLabel("Failed Checks: 0");
+    successfulChecks = new QLabel("Successful Checks: 0");
 
-    iconLabel = new QLabel("Icon:");
-
-    iconComboBox = new QComboBox;
-    iconComboBox->addItem(QIcon(":/images/bad.png"), tr("Bad"));
-    iconComboBox->addItem(QIcon(":/images/heart.png"), tr("Heart"));
-    iconComboBox->addItem(QIcon(":/images/trash.png"), tr("Trash"));
-
-    showIconCheckBox = new QCheckBox(tr("Show icon"));
-    showIconCheckBox->setChecked(true);
-
-    QHBoxLayout *iconLayout = new QHBoxLayout;
-    iconLayout->addWidget(iconLabel);
-    iconLayout->addWidget(iconComboBox);
-    iconLayout->addStretch();
-    iconLayout->addWidget(showIconCheckBox);
-    iconGroupBox->setLayout(iconLayout);
+    QHBoxLayout *statusLayout = new QHBoxLayout;
+    statusLayout->addWidget(successfulChecks);
+    statusLayout->addWidget(failedChecks);
+    statusLayout->addWidget(enableChecks);
+    statusGroupBox->setLayout(statusLayout);
 }
 
 void Window::addItemToListClicked() {
@@ -216,7 +184,19 @@ void Window::initListFromStorage() {
     }
 }
 
+void Window::updateCheckNumbers() {
+    auto success = QStringLiteral("Successful Checks: %1").arg(numSuccess);
+    successfulChecks->setText(success);
+    auto failed = QStringLiteral("Failed Checks: %1").arg(numFailed);
+    failedChecks->setText(failed);
+}
+
 void Window::timerTick() {
+    if (enableChecks->checkState() == Qt::Unchecked) {
+        qDebug() << "is unchecked return early";
+        return;
+    }
+
     bool needsToNotify = true;
     for (int i = 0; i < listItemsToWatch->count(); ++i) {
         QListWidgetItem *item = listItemsToWatch->item(i);
@@ -231,8 +211,12 @@ void Window::timerTick() {
     }
 
     if (needsToNotify) {
+        numFailed++;
         showMessage();
+    } else {
+        numSuccess++;
     }
+    updateCheckNumbers();
 }
 
 void Window::onListItemClicked(QListWidgetItem *item) {
@@ -254,17 +238,14 @@ bool Window::checkFolderForChange(QString path) {
         QFileInfo fileInfo(it.fileInfo());
         QDateTime lastModified = fileInfo.lastModified();
 
-        //qDebug() << file.fileName() << "last modified " << lastModified;
-        qDebug() << "mustBeAfter" << mustBeAfter << lastModified.toMSecsSinceEpoch();
         if (lastModified.toMSecsSinceEpoch() > mustBeAfter) {
-            qDebug() << file.fileName() << " last modified time GREATER!!!! than target. good means recent change here ";
             return true;
         }
     }
     return false;
 }
 
-void Window::createMessageGroupBox() {
+void Window::createFoldersGroupBox() {
     messageGroupBox = new QGroupBox(tr("Folders To Check"));
 
     listItemsToWatch = new QListWidget;

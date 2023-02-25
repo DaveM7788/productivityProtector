@@ -41,7 +41,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
-    void setIcon(int index);
+    void setIcon();
     void iconActivated(QSystemTrayIcon::ActivationReason reason);
     void showMessage();
     void messageClicked();
@@ -52,23 +52,19 @@ private slots:
     void onListItemClicked(QListWidgetItem *item);
 
 private:
-    void createIconGroupBox();
-    void createMessageGroupBox();
+    void createStatusGroupBox();
+    void createFoldersGroupBox();
     void createActions();
     void createTrayIcon();
     void initListFromStorage();
+    void updateCheckNumbers();
     bool checkFolderForChange(QString path);
 
-    QGroupBox *iconGroupBox;
-    QLabel *iconLabel;
-    QComboBox *iconComboBox;
-    QCheckBox *showIconCheckBox;
+    QGroupBox *statusGroupBox;
 
     QGroupBox *messageGroupBox;
-    QLabel *typeLabel;
     QLabel *durationLabel;
     QLabel *durationWarningLabel;
-    QComboBox *typeComboBox;
     QSpinBox *durationSpinBox;
 
     QAction *minimizeAction;
@@ -83,6 +79,10 @@ private:
     QPushButton *addToListButton;
     QPushButton *deleteFromListButton;
     QPushButton *saveListDataButton;
+
+    QLabel *failedChecks;
+    QLabel *successfulChecks;
+    QCheckBox *enableChecks;
 
     QTimer *timer;
 };
